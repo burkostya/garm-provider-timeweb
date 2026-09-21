@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/BurntSushi/toml v1.5.0
 	github.com/cloudbase/garm-provider-common v0.1.9
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -18,5 +19,4 @@ require (
 	golang.org/x/crypto v0.49.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
