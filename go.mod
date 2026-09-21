@@ -3,7 +3,7 @@ module github.com/burkostya/garm-provider-timeweb
 go 1.25.0
 
 require (
-	github.com/BurntSushi/toml v1.5.0
+	github.com/BurntSushi/toml v1.6.0
 	github.com/cloudbase/garm-provider-common v0.1.9
 	gopkg.in/yaml.v3 v3.0.1
 )
