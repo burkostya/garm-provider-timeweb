@@ -1,0 +1,27 @@
+# Timeweb provider configuration, read by the GARM service account.
+# Set exactly one of token or token_file. Relative paths use this file's directory.
+token_file = "/etc/garm/timeweb.token"
+# token = "replace-with-your-api-token"
+
+# Keep namespace stable while managed servers exist.
+namespace = "timeweb"
+
+# REQUIRED: an existing VPC, with guest egress prepared before cloud-init runs.
+# Timeweb VPC IDs are network identifiers, not custom-image UUIDs.
+network_id = "network-REPLACE_WITH_YOUR_NETWORK_ID"
+
+# The default leaves NAT settings alone. New BGP VPCs need a prepared gateway
+# and guest routes. See docs/timeweb-setup.md before enabling any runners.
+network_mode = ""
+
+# For an EXISTING legacy OVN VPC with NAT already configured, you may select:
+# network_mode = "snat"
+# Never use snat on a BGP network. Shared NAT/IP resources are not deleted here.
+
+# Optional: must agree with your VPC, selected image, and server preset.
+# availability_zone = "replace-with-zone"
+# project_id = 12345
+# ssh_key_ids = [12345]
+
+api_url = "https://api.timeweb.cloud/api/v1"
+request_timeout_seconds = 60

@@ -1,0 +1,98 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths: [VERSION]
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Select and validate release version
+        id: version
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$REF_TYPE" == tag ]]; then
+            version="$REF_NAME"
+          else
+            version="$(cat VERSION)"
+          fi
+          if [[ ! "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+            printf 'Invalid release version: expected vMAJOR.MINOR.PATCH or a prerelease tag\n' >&2
+            exit 1
+          fi
+          printf 'value=%s\n' "$version" >> "$GITHUB_OUTPUT"
+      - name: Require a new tag for VERSION-based releases
+        if: github.ref_type == 'branch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ steps.version.outputs.value }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          refs="$(gh api --paginate "repos/${GH_REPO}/git/matching-refs/tags/${VERSION}" --jq '.[].ref')"
+          while IFS= read -r ref; do
+            if [[ "$ref" == "refs/tags/$VERSION" ]]; then
+              printf 'Tag %s already exists; choose a new VERSION instead of moving a release tag.\n' "$VERSION" >&2
+              exit 1
+            fi
+          done <<< "$refs"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.26.8'
+          cache: true
+      - name: Verify and test the release source
+        run: |
+          go mod verify
+          make check
+      - name: Build versioned archives and checksums
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: make dist
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ steps.version.outputs.value }}
+          REF_TYPE: ${{ github.ref_type }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Atomically create the tag after successful builds. A concurrent tag
+          # creation fails here instead of silently releasing different source.
+          if [[ "$REF_TYPE" == branch ]]; then
+            gh api --method POST "repos/${GH_REPO}/git/refs" \
+              -f "ref=refs/tags/$VERSION" -f "sha=$GITHUB_SHA" --silent
+          fi
+          args=(--verify-tag --title "$VERSION")
+          # v0.1.0 is an experimental first release until a real-cloud smoke test is recorded.
+          if [[ "$VERSION" == v0.1.0 || "$VERSION" == *-* ]]; then
+            args+=(--prerelease --latest=false)
+          fi
+          if [[ -f "docs/releases/$VERSION.md" ]]; then
+            args+=(--notes-file "docs/releases/$VERSION.md")
+          else
+            args+=(--generate-notes)
+          fi
+          gh release create "$VERSION" "${args[@]}" \
+            "dist/garm-provider-timeweb_${VERSION}_linux_amd64.tar.gz" \
+            "dist/garm-provider-timeweb_${VERSION}_linux_arm64.tar.gz" \
+            dist/SHA256SUMS

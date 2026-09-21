@@ -1,0 +1,11 @@
+# Append this section to GARM's configuration; it is not a complete GARM config.
+# Paths must be visible inside GARM's container if using a container deployment.
+[[provider]]
+name = "timeweb"
+provider_type = "external"
+description = "Ephemeral runners on Timeweb Cloud"
+
+[provider.external]
+provider_executable = "/opt/garm/providers.d/garm-provider-timeweb"
+config_file = "/etc/garm/timeweb.toml"
+interface_version = "v0.1.0"
